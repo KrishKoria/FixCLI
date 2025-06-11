@@ -14,15 +14,12 @@ def get_files_info(working_directory, directory=None):
     if directory is None:
         directory = working_directory
     else:
-        # Resolve absolute paths and check if directory is within working_directory
         abs_working_dir = os.path.abspath(working_directory)
         abs_directory = os.path.abspath(os.path.join(working_directory, directory))
         
-        # Check if the target directory is outside the working directory
         if not abs_directory.startswith(abs_working_dir):
             return f'Error: Cannot list "{directory}" as it is outside the permitted working directory'
         
-        # Check if the directory exists and is actually a directory
         if not os.path.exists(abs_directory):
             return f'Error: "{directory}" is not a directory'
         
@@ -38,7 +35,6 @@ def get_files_info(working_directory, directory=None):
             is_dir = os.path.isdir(item_path)
             
             if is_dir:
-                # For directories, we can use 0 or calculate the size differently
                 size = 0
             else:
                 size = os.path.getsize(item_path)
