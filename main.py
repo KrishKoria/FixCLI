@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from google import genai
 import sys
 from google.genai import types
+from functions.call_function import call_function
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
@@ -130,7 +131,17 @@ if res.candidates[0].content.parts:
     for part in res.candidates[0].content.parts:
         if hasattr(part, 'function_call') and part.function_call:
             function_call_part = part.function_call
-            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+            function_call_result = call_function(function_call_part, verbose)
+            
+            if not (hasattr(function_call_result, 'parts') and 
+                    len(function_call_result.parts) > 0 and
+                    hasattr(function_call_result.parts[0], 'function_response') and
+                    hasattr(function_call_result.parts[0].function_response, 'response')):
+                raise Exception("Function call did not return expected response structure")
+            
+            if verbose:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
+                
         elif hasattr(part, 'text') and part.text:
             print(part.text)
 else: 
