@@ -127,25 +127,47 @@ res = client.models.generate_content(
     ),
 )
 
-if res.candidates[0].content.parts:
-    for part in res.candidates[0].content.parts:
-        if hasattr(part, 'function_call') and part.function_call:
-            function_call_part = part.function_call
-            function_call_result = call_function(function_call_part, verbose)
-            
-            if not (hasattr(function_call_result, 'parts') and 
-                    len(function_call_result.parts) > 0 and
-                    hasattr(function_call_result.parts[0], 'function_response') and
-                    hasattr(function_call_result.parts[0].function_response, 'response')):
-                raise Exception("Function call did not return expected response structure")
-            
-            if verbose:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
-                
-        elif hasattr(part, 'text') and part.text:
-            print(part.text)
-else: 
-    print(res.text)
+max_iterations = 20
+for iteration in range(max_iterations):
+    if verbose:
+        print(f"\n--- Iteration {iteration + 1} ---")
+    
+    res = client.models.generate_content(
+        model="gemini-2.0-flash-001",
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions],
+            system_instruction=SYSTEM_PROMPT
+        ),
+    )
+    
+    function_called = False
+    for candidate in res.candidates:
+        messages.append(candidate.content)
+        
+        if candidate.content.parts:
+            for part in candidate.content.parts:
+                if hasattr(part, 'function_call') and part.function_call:
+                    function_called = True
+                    function_call_part = part.function_call
+                    function_call_result = call_function(function_call_part, verbose)
+                    
+                    if not (hasattr(function_call_result, 'parts') and 
+                            len(function_call_result.parts) > 0 and
+                            hasattr(function_call_result.parts[0], 'function_response') and
+                            hasattr(function_call_result.parts[0].function_response, 'response')):
+                        raise Exception("Function call did not return expected response structure")
+                    
+                    messages.append(function_call_result)
+                    
+                    if verbose:
+                        print(f"-> {function_call_result.parts[0].function_response.response}")
+    
+    if not function_called:
+        if res.text:
+            print(res.text)
+        break
+
 if verbose:
     print(f"Prompt tokens: {res.usage_metadata.prompt_token_count}")
     print(f"Response tokens: {res.usage_metadata.candidates_token_count}")
